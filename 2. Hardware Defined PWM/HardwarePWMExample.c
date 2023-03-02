@@ -12,28 +12,24 @@
  */
 
 #include <msp430.h>
-int start = 1;
-int red = 0;
-int green = 0;
-int blue = 0;
+int x = 0;
 
 
 int main(void)
 {
     WDTCTL = WDTPW | WDTHOLD;                 // Stop WDT
 
-    P6DIR |= BIT0;                     // P6.0 output
-    P6SEL0 |= BIT0;
-    P6SEL1 &= ~BIT0;                    // P6.0 options select
+    P6DIR |= BIT0;                     // Red
+    P6OUT |= BIT0;
+    P6SEL1 &= ~BIT0;
 
+    P4DIR |= BIT6;                      //Green
+    P4OUT |= BIT6;
+    P4SEL1 &= ~BIT1;
 
-    P6DIR |= BIT1;
-    P6SEL0 |= BIT1;
-    P6SEL1 &= ~BIT1;
-
-    P6DIR |= BIT2;
-    P6SEL0 |= BIT2;
-    P6SEL1 &= ~BIT2;
+    P3DIR |= BIT2;                  //Blue
+    P3OUT |= BIT2;
+    P3SEL1 &= ~BIT2;
 
 
     // Disable the GPIO power-on default high-impedance mode to activate
@@ -41,65 +37,70 @@ int main(void)
     PM5CTL0 &= ~LOCKLPM5;
 
     TB3CCR0 = 1000-1;                         // PWM Period
-    //TB3CCTL1 = OUTMOD_7;                      // CCR1 reset/set
+    TB3CCTL1 = OUTMOD_7;                      // CCR1 reset/set
     TB3CCR1 = 300;                            // CCR1 PWM duty cycle
     TB3CCTL1 |= CCIE;
-    TB3CTL = TBSSEL__SMCLK | MC__UP | TBCLR;  // SMCLK, up mode, clear TBR
+    TB3CTL = TBSSEL_1 | MC_1 | TBCLR;  // SMCLK, up mode, clear TBR
 
+
+    TB1CCTL1 |= CCIE;
     TB1CTL = TBSSEL_1 |MC_2 |TBCLR;
-    TB1CCR0 = 5000;
+    TB1CCR0 = 500;
 
 
-    __bis_SR_register(LPM0_bits);             // Enter LPM0
+    __bis_SR_register(LPM0_bits | GIE);             // Enter LPM0
     __no_operation();                         // For debugger
 }
 
-#pragma vector=TIMER0_B1_VECTOR
-__interrupt void TIMER0_B1_ISR(void)
-{
 
-   if (start) {
-       P6OUT |= BIT0;
-       P6OUT &= ~BIT1;
-       P6OUT &= ~BIT2;
-   }
-
-   else if (red) {
-       P6OUT &= ~BIT0;
-       P6OUT |= ~BIT1;
-   }
-   else if (green) {
-       P6OUT &= ~BIT1;
-       P6OUT |= BIT2;
-   }
-   else if (blue) {
-       P6OUT |= BIT0;
-       P6OUT &= ~BIT2;
-   }
-TB1CCR0 += 5000;
-}
 
 #pragma vector=TIMER3_B1_VECTOR
-__interrupt void TIMER0_B3_ISR(void)
+__interrupt void TIMER3_B1_ISR(void)
 {
 
-   if (start){
-       start = 0;
-       red = 1;
-   }
-   else if (red) {
-       red = 0;
-       green = 1;
-   }
-   else if (green) {
-       green = 0;
-       blue = 1;
-   }
-   else if (blue) {
-       blue = 0;
-       start = 1;
-   }
-   TB3CCR1 += 300;
+
+TB3CCR0 += 300;
+}
+
+#pragma vector=TIMER1_B1_VECTOR
+__interrupt void TIMER1_B1_ISR(void)
+{
+
+
+
+    switch (x) {
+    case 0: {
+        x++;
+        P6OUT &= ~BIT0;
+                  P4OUT |= BIT6;
+                  P3OUT |= BIT2;
+                  break;
+    }
+    case 1: {
+        x++;
+        P6OUT |= BIT0;
+                  P4OUT &= ~BIT6;
+                  break;
+    }
+    case 2: {
+       x++;
+        P4OUT |= BIT6;
+                 P3OUT &= ~BIT2;
+                 break;
+    }
+    case 3: {
+        x=0;
+        P6OUT &= ~BIT0;
+                 P3OUT |= BIT2;
+                 break;
+    }
+
+
+
+    }
+
+    TB1CCR0 += 500;
+
 }
 
 
